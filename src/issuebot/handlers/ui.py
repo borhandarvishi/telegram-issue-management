@@ -103,6 +103,9 @@ async def go_back(ctx: Ctx) -> None:
     if state == Screen.INVITE_CONFIRM:
         await goto(ctx, Screen.INVITE)
         return
+    if state == Screen.REMOVE_MEMBER:
+        await goto(ctx, Screen.MEMBERS)
+        return
     if state == Screen.DELETE_CONFIRM:
         await goto(ctx, Screen.PROJECT)
         return

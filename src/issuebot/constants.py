@@ -32,6 +32,7 @@ class Screen(StrEnum):
     NOTE = "note"
     REASSIGN = "reassign"
     DELETE_CONFIRM = "delete_confirm"
+    REMOVE_MEMBER = "remove_member"
 
 
 class Status(StrEnum):
@@ -90,6 +91,7 @@ class Btn:
     PREV = "◀️ Previous"
     DELETE = "🗑 Delete project"
     DELETE_YES = "✅ Delete this project"
+    REMOVE_YES = "✅ Remove this person"
 
 
 FILTER_BY_BUTTON = {

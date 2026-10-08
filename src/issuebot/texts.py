@@ -49,6 +49,7 @@ def await_channel(name: str, username: str, missing: list[str] | None = None) ->
         "1. Create a <b>private channel</b> in Telegram.",
         "2. Tap <b>Choose channel</b> below and pick it.",
         f"3. Telegram asks to add {h(bot)} as an admin. Accept.",
+        "That includes permission to ban users, so you can remove someone later.",
         "",
         "The channel is linked only to the project open on this screen.",
         "A public channel can also be sent as @name.",
@@ -138,17 +139,39 @@ def project_list(count: int) -> str:
     return f"<b>Projects</b>\n\n{count} project(s). Open one."
 
 
-def members_screen(name: str, lines: list[str]) -> str:
+def members_screen(name: str, lines: list[str], *, can_remove: bool) -> str:
     if lines:
         body = "\n".join(lines)
     else:
         body = "Nobody else is in this project yet.\nSend the invite link."
-    return (
-        f"<b>Members · {h(name)}</b>\n\n"
-        f"{body}\n\n"
-        "Names look like @username (Name).\n"
-        "An account with no username is shown by name only."
+    tail = (
+        "Tap a person to remove them from the project and the channel."
+        if can_remove
+        else "Names look like @username (Name).\nAn account with no username is shown by name only."
     )
+    return f"<b>Members · {h(name)}</b>\n\n{body}\n\n{tail}"
+
+
+def remove_member_confirm(project: str, person: str) -> str:
+    return (
+        f"<b>Remove {h(person)}?</b>\n"
+        f"{h(project)}\n\n"
+        "They leave the project and the channel.\n"
+        "A new invite can let them back in later."
+    )
+
+
+def removed_from_project(project: str) -> str:
+    return (
+        f"You were removed from <b>{h(project)}</b>.\n"
+        "It is no longer in your projects, and you were removed from the channel."
+    )
+
+
+CANNOT_REMOVE_FROM_CHANNEL = (
+    "The bot could not remove that person from the channel.\n"
+    "In the channel, edit the bot's admin rights and turn on Ban users. Then try again."
+)
 
 
 def member_line(person: str, *, is_owner: bool, opened_bot: bool) -> str:

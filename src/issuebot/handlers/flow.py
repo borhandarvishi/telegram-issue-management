@@ -9,9 +9,11 @@ from issuebot.handlers.actions import (
     begin_reassign,
     change_page,
     confirm_joined,
+    confirm_remove_member,
     create_named_project,
     delete_owned_project,
     do_confirm,
+    do_remove_member,
     do_reopen,
     do_resolve,
     link_from_text,
@@ -56,6 +58,9 @@ async def handle_text(ctx: Ctx) -> None:
 
     state = ctx.dialog.state
     labels = {str(key): int(value) for key, value in (ctx.payload.get("labels") or {}).items()}
+    if state == Screen.MEMBERS and text in labels:
+        await confirm_remove_member(ctx, labels[text])
+        return
     if state in _LABEL_SCREENS and text in labels:
         await _open_label(ctx, labels[text])
         return
@@ -162,6 +167,7 @@ _ACTIONS = {
     Screen.INVITE.value: {Btn.ROTATE: lambda ctx: goto(ctx, Screen.INVITE_CONFIRM)},
     Screen.INVITE_CONFIRM.value: {Btn.ROTATE_YES: rotate_link},
     Screen.DELETE_CONFIRM.value: {Btn.DELETE_YES: delete_owned_project},
+    Screen.REMOVE_MEMBER.value: {Btn.REMOVE_YES: do_remove_member},
     Screen.JOIN.value: {Btn.JOINED: confirm_joined},
     Screen.REPORT_MEDIA.value: {Btn.PHOTOS_DONE: lambda ctx: goto(ctx, Screen.REPORT_ASSIGN)},
     Screen.REPORT_ASSIGN.value: {Btn.SAVE_ISSUE: submit_report},

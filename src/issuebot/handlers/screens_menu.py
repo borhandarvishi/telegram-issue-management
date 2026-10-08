@@ -153,7 +153,9 @@ async def render_members(ctx: Ctx) -> None:
     project = await linked_project(ctx)
     if project is None:
         return
+    owner = project.owner_id == ctx.account.id
     lines = []
+    pairs = []
     for row in await roster(ctx.db, project.id):
         person = format_person(row.user.username, row.user.first_name, row.user.last_name)
         lines.append(
@@ -165,7 +167,44 @@ async def render_members(ctx: Ctx) -> None:
                 )
             )
         )
-    await present(ctx, texts.members_screen(project.name, lines), [back_row()], "Members")
+        if owner and row.user_id != project.owner_id:
+            pairs.append((person, row.user_id))
+    labels = unique_labels(pairs)
+    update_payload(ctx.dialog, labels={key: int(value) for key, value in labels.items()})
+    rows = [[label] for label in labels]
+    rows.append(back_row())
+    await present(
+        ctx,
+        texts.members_screen(project.name, lines, can_remove=bool(pairs)),
+        rows,
+        "Members",
+    )
+
+
+async def render_remove_member(ctx: Ctx) -> None:
+    project = await linked_project(ctx)
+    if project is None:
+        return
+    if project.owner_id != ctx.account.id:
+        update_payload(ctx.dialog, flash=texts.NOT_ALLOWED)
+        await goto(ctx, Screen.MEMBERS)
+        return
+    user_id = ctx.payload.get("remove_user_id")
+    row = None
+    for item in await roster(ctx.db, project.id):
+        if item.user_id == user_id:
+            row = item
+            break
+    if row is None:
+        await goto(ctx, Screen.MEMBERS)
+        return
+    person = format_person(row.user.username, row.user.first_name, row.user.last_name)
+    await present(
+        ctx,
+        texts.remove_member_confirm(project.name, person),
+        [[Btn.REMOVE_YES], back_row()],
+        "Confirm remove",
+    )
 
 
 async def render_join(ctx: Ctx) -> None:

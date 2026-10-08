@@ -46,7 +46,7 @@ from issuebot.services.linking import (
     parse_channel_ref,
     user_in_channel,
 )
-from issuebot.services.members import activate_user, member_ids
+from issuebot.services.members import CannotRemove, activate_user, drop_member, member_ids
 from issuebot.services.projects import (
     NotOwner,
     by_channel,
@@ -212,6 +212,45 @@ async def _leave_channel(ctx: Ctx, channel_id: int | None, invite_link: str | No
             await ctx.bot.revoke_chat_invite_link(channel_id, invite_link)
     with suppress(TelegramBadRequest, TelegramForbiddenError):
         await ctx.bot.leave_chat(channel_id)
+
+
+async def confirm_remove_member(ctx: Ctx, user_id: int) -> None:
+    update_payload(ctx.dialog, remove_user_id=user_id)
+    await goto(ctx, Screen.REMOVE_MEMBER)
+
+
+async def do_remove_member(ctx: Ctx) -> None:
+    project = await get_project(ctx.db, ctx.dialog.project_id)
+    user_id = ctx.payload.get("remove_user_id")
+    if project is None or not user_id:
+        await goto(ctx, Screen.MEMBERS)
+        return
+    if project.channel_id and not await _kick_from_channel(ctx, project.channel_id, int(user_id)):
+        await remember(ctx, texts.CANNOT_REMOVE_FROM_CHANNEL)
+        return
+    try:
+        await drop_member(ctx.db, project.id, ctx.account.id, int(user_id))
+    except CannotRemove:
+        await remember(ctx, texts.NOT_ALLOWED)
+        return
+    await push_notice(ctx.bot, ctx.db, int(user_id), texts.removed_from_project(project.name))
+    update_payload(
+        ctx.dialog,
+        remove_user_id=None,
+        flash="Removed from the project and the channel.",
+    )
+    await goto(ctx, Screen.MEMBERS)
+
+
+async def _kick_from_channel(ctx: Ctx, channel_id: int, user_id: int) -> bool:
+    try:
+        await ctx.bot.ban_chat_member(channel_id, user_id)
+        with suppress(TelegramBadRequest, TelegramForbiddenError):
+            await ctx.bot.unban_chat_member(channel_id, user_id)
+    except (TelegramBadRequest, TelegramForbiddenError) as exc:
+        logger.info("kick failed channel=%s user=%s err=%s", channel_id, user_id, safe_error(exc))
+        return False
+    return True
 
 
 async def open_labeled_project(ctx: Ctx, project_id: int) -> None:

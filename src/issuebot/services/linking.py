@@ -62,6 +62,7 @@ def missing_admin_perms(member) -> list[str]:
         ("can_invite_users", "Invite users"),
         ("can_post_messages", "Post messages"),
         ("can_delete_messages", "Delete messages"),
+        ("can_restrict_members", "Ban users"),
     )
     for attr, label in checks:
         if not getattr(member, attr, False):

@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from aiogram.types import User as TgUser
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from issuebot.constants import Role
-from issuebot.db.models import Membership, utcnow
+from issuebot.constants import Role, Screen
+from issuebot.db.models import Assignment, Dialog, Issue, Membership, User, utcnow
 from issuebot.formatting import format_person
 from issuebot.services.accounts import upsert_user
 
@@ -59,6 +59,44 @@ async def activate_user(
         row.active = True
     await db.flush()
     return row
+
+
+class CannotRemove(Exception):
+    pass
+
+
+async def drop_member(db: AsyncSession, project_id: int, actor_id: int, user_id: int) -> User:
+    """Remove someone from a project. Only the creator may do this, and not themselves."""
+    from issuebot.services.projects import get_project
+
+    project = await get_project(db, project_id)
+    row = await get_membership(db, project_id, user_id)
+    if (
+        project is None
+        or row is None
+        or project.owner_id != actor_id
+        or user_id == project.owner_id
+    ):
+        raise CannotRemove
+    user = await db.get(User, user_id)
+    if user is None:
+        raise CannotRemove
+    issue_ids = select(Issue.id).where(Issue.project_id == project_id)
+    await db.execute(
+        delete(Assignment).where(
+            Assignment.user_id == user_id,
+            Assignment.issue_id.in_(issue_ids),
+        )
+    )
+    dialog = await db.get(Dialog, user_id)
+    if dialog is not None and dialog.project_id == project_id:
+        dialog.state = Screen.HOME
+        dialog.project_id = None
+        dialog.issue_id = None
+        dialog.payload = {}
+    await db.delete(row)
+    await db.flush()
+    return user
 
 
 async def set_active(db: AsyncSession, project_id: int, user_id: int, active: bool) -> None:
