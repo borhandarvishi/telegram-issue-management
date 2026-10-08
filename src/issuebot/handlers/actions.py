@@ -22,7 +22,7 @@ from issuebot.constants import (
     IssueFilter,
     Screen,
 )
-from issuebot.formatting import channel_card, format_person
+from issuebot.formatting import channel_card, format_person, h
 from issuebot.handlers.types import Ctx
 from issuebot.handlers.ui import goto, remember, render
 from issuebot.messaging import push_notice, safe_error
@@ -47,7 +47,14 @@ from issuebot.services.linking import (
     user_in_channel,
 )
 from issuebot.services.members import activate_user, member_ids
-from issuebot.services.projects import by_channel, by_public_id, create_project, get_project
+from issuebot.services.projects import (
+    NotOwner,
+    by_channel,
+    by_public_id,
+    create_project,
+    get_project,
+    remove_project,
+)
 from issuebot.services.publish import PublishFailed, republish
 
 logger = logging.getLogger("issuebot")
@@ -176,6 +183,35 @@ async def rotate_link(ctx: Ctx) -> None:
     project.invite_link = created.invite_link
     update_payload(ctx.dialog, flash="The new link is ready. The previous one no longer works.")
     await goto(ctx, Screen.INVITE)
+
+
+async def delete_owned_project(ctx: Ctx) -> None:
+    project = await get_project(ctx.db, ctx.dialog.project_id)
+    if project is None:
+        await goto(ctx, Screen.PROJECT_LIST)
+        return
+    try:
+        removed = await remove_project(ctx.db, project.id, ctx.account.id)
+    except NotOwner:
+        await remember(ctx, texts.NOT_ALLOWED)
+        return
+    await _leave_channel(ctx, removed.channel_id, removed.invite_link)
+    for user_id in removed.member_ids:
+        if user_id == ctx.account.id:
+            continue
+        await push_notice(ctx.bot, ctx.db, user_id, texts.project_removed(removed.name))
+    update_payload(ctx.dialog, flash=f"<b>{h(removed.name)}</b> was deleted.")
+    await goto(ctx, Screen.PROJECT_LIST)
+
+
+async def _leave_channel(ctx: Ctx, channel_id: int | None, invite_link: str | None) -> None:
+    if not channel_id:
+        return
+    if invite_link:
+        with suppress(TelegramBadRequest, TelegramForbiddenError):
+            await ctx.bot.revoke_chat_invite_link(channel_id, invite_link)
+    with suppress(TelegramBadRequest, TelegramForbiddenError):
+        await ctx.bot.leave_chat(channel_id)
 
 
 async def open_labeled_project(ctx: Ctx, project_id: int) -> None:

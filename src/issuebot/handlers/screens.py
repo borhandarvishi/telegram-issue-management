@@ -3,6 +3,7 @@
 from issuebot.constants import Screen
 from issuebot.handlers.screens_menu import (
     render_await,
+    render_delete_confirm,
     render_help,
     render_home,
     render_invite,
@@ -34,6 +35,7 @@ RENDER = {
     Screen.HELP: render_help,
     Screen.NEW_PROJECT: render_new_project,
     Screen.AWAIT_CHANNEL: render_await,
+    Screen.DELETE_CONFIRM: render_delete_confirm,
     Screen.PROJECT_LIST: render_project_list,
     Screen.PROJECT: render_project,
     Screen.INVITE: render_invite,

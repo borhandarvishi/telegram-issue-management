@@ -9,6 +9,7 @@ The interface is English.
 ## What a team can do
 
 - Create a project and connect it to a private channel.
+- Delete a project you created. It disappears from every member's list.
 - Share one invite link. Regenerating the link revokes the previous one.
 - Report an issue with a title, a description (links included), and up to 10 photos.
 - See who is in the project and assign one or more people.

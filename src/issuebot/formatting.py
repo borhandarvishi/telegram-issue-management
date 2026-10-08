@@ -61,7 +61,8 @@ def format_person(username: str | None, first_name: str, last_name: str | None =
 def format_when(moment: datetime) -> str:
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=UTC)
-    return moment.astimezone(UTC).strftime("%d %b %Y, %H:%M UTC")
+    moment = moment.astimezone(UTC)
+    return f"{moment.day} {moment.strftime('%b %Y')}"
 
 
 def status_emoji(status: str) -> str:
@@ -125,20 +126,24 @@ def channel_delivery(_text: str, photo_count: int) -> str:
     return "album"
 
 
-def _people(assignees: tuple[str, ...]) -> str:
-    if not assignees:
-        return "Unassigned"
-    return "، ".join(assignees)
+def _section(title: str, body: list[str]) -> list[str]:
+    if not body:
+        return []
+    return ["", f"<b>{title}</b>", *body]
+
+
+def _quoted(text: str) -> str:
+    return f"<blockquote>{text}</blockquote>"
 
 
 def _notes_block(notes: tuple[NoteLine, ...], *, limit: int) -> list[str]:
     if not notes:
         return []
-    body = ["", "<b>Notes</b>"]
+    body = []
     for note in notes[-limit:]:
         text = note.body if len(note.body) <= 220 else note.body[:219] + "…"
-        body.append(f"• {h(note.author)}: {linkify(text)}")
-    return body
+        body.append(_quoted(f"{h(note.author)}\n{linkify(text)}"))
+    return _section("Notes", body)
 
 
 def channel_card(card: IssueCard, *, limit: int = MESSAGE_LIMIT) -> str:
@@ -149,45 +154,37 @@ def detail_card(card: IssueCard) -> str:
     return _shrink(card, _detail_lines, MESSAGE_LIMIT)
 
 
-def _channel_lines(card: IssueCard) -> str:
+def _card_lines(card: IssueCard, *, notes: int, history: bool, photos: bool) -> str:
     phrase = status_phrase(card.status, solver=card.solver, confirmer=card.confirmer)
     lines = [
         f"{status_emoji(card.status)} <b>{issue_token(card.number)}</b>",
-        f"Status: {h(phrase)}",
-        f"Project: {h(card.project)}",
+        h(phrase),
+        f"{h(card.project)}  ·  {format_when(card.created_at)}",
         "",
         f"<b>{h(card.title)}</b>",
-        "",
-        linkify(card.description),
-        "",
-        f"Reporter: {h(card.reporter)}",
-        f"Assignees: {h(_people(card.assignees))}",
     ]
-    lines += _notes_block(card.notes, limit=5)
-    lines += ["", f"Reported {format_when(card.created_at)}", "", f"#{card.number}"]
+    description = (card.description or "").strip()
+    if description:
+        lines += ["", _quoted(linkify(description))]
+    lines += _section("Reporter", [h(card.reporter)])
+    assignees = [h(person) for person in card.assignees] or ["Unassigned"]
+    lines += _section("Assignees", assignees)
+    if photos and card.photo_count:
+        word = "photo" if card.photo_count == 1 else "photos"
+        lines += _section("Photos", [f"{card.photo_count} {word}"])
+    lines += _notes_block(card.notes, limit=notes)
+    if history and card.timeline:
+        lines += _section("History", [f"• {h(item)}" for item in card.timeline[-8:]])
+    lines += ["", f"#{card.number}"]
     return "\n".join(lines)
+
+
+def _channel_lines(card: IssueCard) -> str:
+    return _card_lines(card, notes=5, history=False, photos=False)
 
 
 def _detail_lines(card: IssueCard) -> str:
-    phrase = status_phrase(card.status, solver=card.solver, confirmer=card.confirmer)
-    lines = [
-        f"{status_emoji(card.status)} <b>{issue_token(card.number)}</b>",
-        h(card.project),
-        f"Status: {h(phrase)}",
-        "",
-        f"<b>{h(card.title)}</b>",
-        linkify(card.description),
-        "",
-        f"Reporter: {h(card.reporter)}",
-        f"Assignees: {h(_people(card.assignees))}",
-        f"Photos: {card.photo_count}",
-    ]
-    lines += _notes_block(card.notes, limit=10)
-    if card.timeline:
-        lines += ["", "<b>History</b>"]
-        lines += [f"• {h(item)}" for item in card.timeline[-8:]]
-    lines += ["", f"Reported {format_when(card.created_at)}"]
-    return "\n".join(lines)
+    return _card_lines(card, notes=8, history=True, photos=True)
 
 
 def _shrink(card: IssueCard, render, limit: int) -> str:

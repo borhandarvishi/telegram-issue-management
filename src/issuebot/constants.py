@@ -31,6 +31,7 @@ class Screen(StrEnum):
     REOPEN_CONFIRM = "reopen_confirm"
     NOTE = "note"
     REASSIGN = "reassign"
+    DELETE_CONFIRM = "delete_confirm"
 
 
 class Status(StrEnum):
@@ -87,6 +88,8 @@ class Btn:
     ASSIGNED = "🎯 Assigned to me"
     NEXT = "▶️ Next"
     PREV = "◀️ Previous"
+    DELETE = "🗑 Delete project"
+    DELETE_YES = "✅ Delete this project"
 
 
 FILTER_BY_BUTTON = {

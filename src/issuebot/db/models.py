@@ -45,7 +45,14 @@ class Project(Base):
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
     owner: Mapped[User] = relationship()
-    issues: Mapped[list[Issue]] = relationship(back_populates="project")
+    issues: Mapped[list[Issue]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    memberships: Mapped[list[Membership]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
 
 
 class Membership(Base):
@@ -62,7 +69,7 @@ class Membership(Base):
     joined_at: Mapped[datetime] = mapped_column(default=utcnow)
 
     user: Mapped[User] = relationship()
-    project: Mapped[Project] = relationship()
+    project: Mapped[Project] = relationship(back_populates="memberships")
 
 
 class Issue(Base):

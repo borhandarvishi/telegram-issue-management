@@ -91,6 +91,19 @@ def invite_screen(
     )
 
 
+def delete_confirm(name: str) -> str:
+    return (
+        f"<b>Delete {h(name)}?</b>\n\n"
+        "This removes the project for every member.\n"
+        "Issues in it are removed from the bot as well.\n"
+        "The Telegram channel itself stays."
+    )
+
+
+def project_removed(name: str) -> str:
+    return f"<b>{h(name)}</b> was deleted by its owner.\nIt is no longer in your projects."
+
+
 def rotate_confirm(name: str) -> str:
     return (
         f"<b>{h(name)}</b>\n\n"

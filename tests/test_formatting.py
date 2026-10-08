@@ -50,8 +50,14 @@ def test_channel_card_puts_number_at_the_end_and_names_people():
     text = channel_card(_card())
     assert text.startswith("🔴 <b>ISSUE #12</b>")
     assert text.strip().endswith("#12")
-    assert "Reporter: @sara (Sara Ahmadi)" in text
-    assert "Assignees: @ali (Ali Rezaei)" in text
+    assert "<b>Reporter</b>" in text
+    assert "@sara (Sara Ahmadi)" in text
+    assert "<b>Assignees</b>" in text
+    assert "@ali (Ali Rezaei)" in text
+    assert "<blockquote>" in text
+    assert "8 Oct 2026" in text
+    assert "19:11" not in text
+    assert "UTC" not in text
     assert "https://example.com/login" in text
 
 
@@ -77,7 +83,8 @@ def test_detail_includes_timeline_and_notes():
     assert "Notes" in text
     assert "Cleared the cache" in text
     assert "History" in text
-    assert "Photos: 2" in text
+    assert "<b>Photos</b>" in text
+    assert "2 photos" in text
 
 
 def test_delivery_keeps_photos_and_text_in_one_post():

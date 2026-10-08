@@ -46,6 +46,8 @@ async def render_await(ctx: Ctx) -> None:
     rows: list = [[channel_button()]]
     if ctx.payload.get("pending_channel_id"):
         rows.append([Btn.RECHECK])
+    if project.owner_id == ctx.account.id:
+        rows.append([Btn.DELETE])
     rows.append(back_row())
     await present(
         ctx,
@@ -78,6 +80,9 @@ async def render_project(ctx: Ctx) -> None:
         return
     summary = await counts(ctx.db, project.id)
     mine = await inbox_count(ctx.db, ctx.account.id)
+    rows = project_rows()
+    if project.owner_id == ctx.account.id:
+        rows.append([Btn.DELETE])
     await present(
         ctx,
         texts.project_home(
@@ -87,7 +92,7 @@ async def render_project(ctx: Ctx) -> None:
             inbox_count=mine,
             bot_admin=project.bot_admin,
         ),
-        project_rows(),
+        rows,
         "Choose an action",
     )
 
@@ -112,6 +117,23 @@ async def render_invite(ctx: Ctx) -> None:
         ),
         rows,
         "Copy the link",
+    )
+
+
+async def render_delete_confirm(ctx: Ctx) -> None:
+    project = await get_project(ctx.db, ctx.dialog.project_id)
+    if project is None:
+        await goto(ctx, Screen.PROJECT_LIST)
+        return
+    if project.owner_id != ctx.account.id:
+        update_payload(ctx.dialog, flash=texts.NOT_ALLOWED)
+        await goto(ctx, Screen.PROJECT)
+        return
+    await present(
+        ctx,
+        texts.delete_confirm(project.name),
+        [[Btn.DELETE_YES], back_row()],
+        "Confirm delete",
     )
 
 

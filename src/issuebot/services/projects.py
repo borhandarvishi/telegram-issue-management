@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import secrets
+from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from issuebot.constants import Role
-from issuebot.db.models import Membership, Project, User, utcnow
+from issuebot.constants import Role, Screen
+from issuebot.db.models import Dialog, Membership, Project, User, utcnow
 
 
 async def create_project(db: AsyncSession, owner: User, name: str) -> Project:
@@ -61,6 +62,43 @@ def attach_channel(
     project.channel_title = channel_title
     project.invite_link = invite_link
     project.bot_admin = True
+
+
+class NotOwner(Exception):
+    pass
+
+
+@dataclass(frozen=True)
+class RemovedProject:
+    name: str
+    member_ids: tuple[int, ...]
+    channel_id: int | None
+    invite_link: str | None
+
+
+async def remove_project(db: AsyncSession, project_id: int, actor_id: int) -> RemovedProject:
+    """Delete a project for every member. Only the person who created it may do this."""
+    project = await get_project(db, project_id)
+    if project is None or project.owner_id != actor_id:
+        raise NotOwner
+    member_ids = tuple(
+        await db.scalars(select(Membership.user_id).where(Membership.project_id == project.id))
+    )
+    dialogs = list(await db.scalars(select(Dialog).where(Dialog.project_id == project.id)))
+    for dialog in dialogs:
+        dialog.state = Screen.HOME
+        dialog.project_id = None
+        dialog.issue_id = None
+        dialog.payload = {}
+    removed = RemovedProject(
+        name=project.name,
+        member_ids=member_ids,
+        channel_id=project.channel_id,
+        invite_link=project.invite_link,
+    )
+    await db.delete(project)
+    await db.flush()
+    return removed
 
 
 def start_link(username: str, public_id: str) -> str:
