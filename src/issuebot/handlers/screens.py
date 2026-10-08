@@ -1,0 +1,56 @@
+"""Screen registry. ui.render looks functions up here."""
+
+from issuebot.constants import Screen
+from issuebot.handlers.screens_menu import (
+    render_await,
+    render_help,
+    render_home,
+    render_invite,
+    render_invite_confirm,
+    render_join,
+    render_members,
+    render_new_project,
+    render_project,
+    render_project_list,
+    render_report_body,
+    render_report_media,
+    render_report_title,
+)
+from issuebot.handlers.screens_work import (
+    render_confirm_confirm,
+    render_filters,
+    render_inbox,
+    render_issue,
+    render_issue_list,
+    render_note,
+    render_reassign,
+    render_reopen_confirm,
+    render_report_assign,
+    render_resolve_confirm,
+)
+
+RENDER = {
+    Screen.HOME: render_home,
+    Screen.HELP: render_help,
+    Screen.NEW_PROJECT: render_new_project,
+    Screen.AWAIT_CHANNEL: render_await,
+    Screen.PROJECT_LIST: render_project_list,
+    Screen.PROJECT: render_project,
+    Screen.INVITE: render_invite,
+    Screen.INVITE_CONFIRM: render_invite_confirm,
+    Screen.MEMBERS: render_members,
+    Screen.INBOX: render_inbox,
+    Screen.JOIN: render_join,
+    Screen.REPORT_TITLE: render_report_title,
+    Screen.REPORT_BODY: render_report_body,
+    Screen.REPORT_MEDIA: render_report_media,
+    Screen.REPORT_ASSIGN: render_report_assign,
+    Screen.FILTERS: render_filters,
+    Screen.ISSUE_LIST: render_issue_list,
+    Screen.ISSUE: render_issue,
+    Screen.RESOLVE_CONFIRM: render_resolve_confirm,
+    Screen.CONFIRM_CONFIRM: render_confirm_confirm,
+    Screen.REOPEN_CONFIRM: render_reopen_confirm,
+    Screen.NOTE: render_note,
+    Screen.REASSIGN: render_reassign,
+}
