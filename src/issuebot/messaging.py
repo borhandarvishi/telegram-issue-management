@@ -38,6 +38,7 @@ async def show_screen(bot, db: AsyncSession, dialog: Dialog, text: str, markup) 
         text,
         reply_markup=markup,
         link_preview_options=NO_PREVIEW,
+        disable_notification=True,
     )
     dialog.message_id = sent.message_id
     dialog.updated_at = utcnow()
@@ -45,8 +46,13 @@ async def show_screen(bot, db: AsyncSession, dialog: Dialog, text: str, markup) 
         await safe_delete(bot, dialog.user_id, previous)
 
 
-async def push_notice(bot, db: AsyncSession, user_id: int, text: str, markup=None) -> None:
-    """A notification the person keeps. Later screens do not delete it."""
+async def push_notice(
+    bot, db: AsyncSession, user_id: int, text: str, markup=None, *, silent: bool = False
+) -> None:
+    """A notification the person keeps. Later screens do not delete it.
+
+    Sound only when that person has something to do. Status chatter stays quiet.
+    """
     user = await db.get(User, user_id)
     if user is None or not user.opened_bot:
         return
@@ -56,6 +62,7 @@ async def push_notice(bot, db: AsyncSession, user_id: int, text: str, markup=Non
             text,
             reply_markup=markup,
             link_preview_options=NO_PREVIEW,
+            disable_notification=silent,
         )
     except (TelegramBadRequest, TelegramForbiddenError) as exc:
         logger.info("notice failed user=%s err=%s", user_id, safe_error(exc))

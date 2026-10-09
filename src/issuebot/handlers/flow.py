@@ -25,6 +25,7 @@ from issuebot.handlers.actions import (
     rotate_link,
     save_assignees,
     save_body,
+    save_media_text,
     save_note,
     save_title,
     set_priority,
@@ -86,6 +87,9 @@ async def handle_text(ctx: Ctx) -> None:
         return
     if state == Screen.AWAIT_CHANNEL:
         await link_from_text(ctx)
+        return
+    if state == Screen.REPORT_MEDIA:
+        await save_media_text(ctx)
         return
     await remember(ctx, texts.USE_BUTTONS)
 
@@ -174,7 +178,6 @@ _ACTIONS = {
     Screen.REPORT_BODY.value: {Btn.SKIP: skip_body},
     Screen.REPORT_MEDIA.value: {
         Btn.SKIP: lambda ctx: goto(ctx, Screen.REPORT_ASSIGN),
-        Btn.PHOTOS_DONE: lambda ctx: goto(ctx, Screen.REPORT_ASSIGN),
     },
     Screen.REPORT_ASSIGN.value: {
         Btn.SAVE_ISSUE: submit_report,

@@ -333,6 +333,21 @@ async def set_priority(ctx: Ctx, urgent: bool) -> None:
     await render(ctx)
 
 
+async def save_media_text(ctx: Ctx) -> None:
+    extra = ctx.text.strip()
+    if not extra:
+        await remember(ctx, texts.USE_BUTTONS)
+        return
+    current = str(ctx.payload.get("description") or "").strip()
+    combined = f"{current}\n{extra}".strip() if current else extra
+    update_payload(
+        ctx.dialog,
+        description=combined[:MAX_DESCRIPTION],
+        flash="Saved. Tap Skip when you are done.",
+    )
+    await render(ctx)
+
+
 async def add_photo(ctx: Ctx) -> None:
     if ctx.dialog.state != Screen.REPORT_MEDIA:
         await remember(ctx, texts.USE_BUTTONS)
@@ -565,7 +580,6 @@ async def _transition(ctx: Ctx, factory, *, silent: bool) -> None:
     await _notify_outcome(ctx, fresh, outcome.notify_ids, outcome.kind)
     actor = format_person(ctx.account.username, ctx.account.first_name, ctx.account.last_name)
     line = _kind_text(outcome.kind, actor)
-    await push_notice(ctx.bot, ctx.db, ctx.account.id, texts.kept_status(fresh.number, line))
     extra = "" if published else f"\n{texts.PUBLISH_FAILED}"
     update_payload(ctx.dialog, flash=texts.status_changed(fresh.number, line) + extra)
     await goto(ctx, Screen.ISSUE)
@@ -608,7 +622,14 @@ async def _notify_outcome(ctx: Ctx, issue, user_ids: list[int], kind: str) -> No
             text = texts.notify_note(card.number, card.project, card.title, author, excerpt)
         else:
             continue
-        await push_notice(ctx.bot, ctx.db, user_id, text, markup)
+        await push_notice(
+            ctx.bot,
+            ctx.db,
+            user_id,
+            text,
+            markup,
+            silent=kind in {"confirmed", "note"},
+        )
 
 
 async def _notify_assigned(ctx: Ctx, issue, user_ids: list[int]) -> None:

@@ -70,7 +70,6 @@ class Btn:
     CHOOSE_CHANNEL = "📡 Choose channel"
     JOINED = "✅ I joined the channel"
     SAVE_ISSUE = "✅ Submit issue"
-    PHOTOS_DONE = "✅ Continue"
     RESOLVED = "🟤 Resolved"
     RESOLVED_YES = "✅ Yes, resolved"
     CONFIRM = "✅ Confirm fix"

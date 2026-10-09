@@ -201,32 +201,22 @@ def join_screen(name: str, invite: str | None) -> str:
 
 
 def report_title(project: str) -> str:
-    return (
-        f"<b>New report · {h(project)}</b>\n"
-        "Step 1 of 4\n\n"
-        "Send a short title.\n"
-        "It is shown next to the issue number."
-    )
+    return f"<b>New issue · {h(project)}</b>\n\nSend a title for this issue."
 
 
 def report_body(project: str, title: str) -> str:
     return (
-        f"<b>New report · {h(project)}</b>\n"
-        "Step 2 of 4\n\n"
-        f"Title: {h(title)}\n\n"
-        "Describe the issue, or tap Skip.\n"
-        "Links and steps can go here."
+        f"<b>New issue · {h(project)}</b>\n\n{h(title)}\n\nWrite a good description.\nOr tap Skip."
     )
 
 
 def report_media(project: str, photo_count: int) -> str:
-    photos = f"{photo_count} photo(s) attached." if photo_count else "No photos yet."
+    photos = f"{photo_count} photo(s) added." if photo_count else "No photo yet."
     return (
-        f"<b>New report · {h(project)}</b>\n"
-        "Step 3 of 4\n\n"
-        f"{photos}\n"
-        "Send photos, or tap Skip.\n"
-        "Up to 10 photos."
+        f"<b>New issue · {h(project)}</b>\n\n"
+        f"{photos}\n\n"
+        "Send a photo or a link if you have one.\n"
+        "Then tap Skip."
     )
 
 
@@ -249,14 +239,15 @@ def report_assign(
         names = ", ".join(h(name) for name in pending_names)
         warn = f"\n\n⚠️ {names} has not opened the bot, so they will not get a notification."
     snippet = description if len(description) <= 280 else description[:279] + "…"
+    written = h(snippet) if snippet else "No description."
     return (
-        f"<b>New report · {h(project)}</b>\n"
-        "Step 4 of 4 · Assignee\n\n"
+        f"<b>New issue · {h(project)}</b>\n\n"
         f"<b>{h(title)}</b>\n"
-        f"{h(snippet)}\n"
-        f"Photos: {photo_count}\n\n"
+        f"{written}\n"
+        f"Photos: {photo_count}\n"
         f"Priority: {'Urgent' if urgent else 'Normal'}\n\n"
-        "Tap a name to add them. Tap the same name again to remove them.\n\n"
+        "Select the assignees. Tap a name again to remove them.\n"
+        "Then tap Submit issue under this message.\n\n"
         f"<b>Assignees</b>\n{chosen}{warn}"
     )
 
@@ -371,10 +362,6 @@ def bot_needs_rights(title: str, missing: list[str]) -> str:
 
 def you_removed(person: str, project: str) -> str:
     return f"You removed 👤 {h(person)} from <b>{h(project)}</b>."
-
-
-def kept_status(number: int, line: str) -> str:
-    return f"<b>ISSUE #{number}</b>\n{h(line)}"
 
 
 def notify_assigned(number: int, project: str, title: str, reporter: str, mark: str) -> str:

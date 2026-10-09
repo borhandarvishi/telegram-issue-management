@@ -249,6 +249,6 @@ async def render_report_media(ctx: Ctx) -> None:
     await present(
         ctx,
         texts.report_media(project.name, len(photos)),
-        [[Btn.SKIP, Btn.PHOTOS_DONE], back_row()],
-        "Send photos or continue",
+        [[Btn.SKIP], back_row()],
+        "Photo or link",
     )
