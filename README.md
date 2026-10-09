@@ -55,6 +55,8 @@ TELEGRAM_BOT_TOKEN=123456:your-token
 DATABASE_URL=sqlite+aiosqlite:///./data/issuebot.db
 ```
 
+The picture in `assets/default_bot_profile.jpg` is the bot's profile photo. Every start sets the profile from that file when it is there. Replace the file to use your own picture.
+
 4. Start one instance:
 
 ```bash

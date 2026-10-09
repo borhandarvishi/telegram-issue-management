@@ -19,6 +19,7 @@ from issuebot.handlers.channel import router as channel_router
 from issuebot.handlers.private import router as private_router
 from issuebot.messaging import safe_error
 from issuebot.middlewares import ContextMiddleware
+from issuebot.profile import apply_default_profile
 
 logger = logging.getLogger("issuebot")
 
@@ -33,6 +34,7 @@ async def run(settings: Settings) -> None:
     me = await bot.get_me()
     runtime.bot_username = me.username or ""
     runtime.bot_id = me.id
+    await apply_default_profile(bot)
     dispatcher = Dispatcher()
     dispatcher.update.middleware(ContextMiddleware(database))
     dispatcher.include_router(private_router)
