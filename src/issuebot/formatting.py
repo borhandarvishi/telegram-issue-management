@@ -131,10 +131,13 @@ def channel_delivery(_text: str, photo_count: int) -> str:
     return "album"
 
 
+_RULE = "────────────"
+
+
 def _section(title: str, body: list[str]) -> list[str]:
     if not body:
         return []
-    return ["", f"<b>{title}</b>", *body]
+    return ["", _RULE, f"<b>{title}</b>", *body]
 
 
 def _quoted(text: str) -> str:
@@ -166,6 +169,7 @@ def _card_lines(card: IssueCard, *, notes: int, history: bool, photos: bool) -> 
         h(_phrase(card, phrase)),
         f"{h(card.project)}  ·  {format_when(card.created_at)}",
         "",
+        _RULE,
         f"<b>{h(card.title)}</b>",
     ]
     description = (card.description or "").strip()
@@ -180,7 +184,7 @@ def _card_lines(card: IssueCard, *, notes: int, history: bool, photos: bool) -> 
     lines += _notes_block(card.notes, limit=notes)
     if history and card.timeline:
         lines += _section("History", [f"• {h(item)}" for item in card.timeline[-8:]])
-    lines += ["", f"#{card.number}"]
+    lines += ["", _RULE, f"#{card.number}"]
     return "\n".join(lines)
 
 

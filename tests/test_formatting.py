@@ -55,6 +55,10 @@ def test_channel_card_puts_number_at_the_end_and_names_people():
     assert "<b>Assignees</b>" in text
     assert "@ali (Ali Rezaei)" in text
     assert "<blockquote>" in text
+    assert "────────────\n<b>Login fails</b>" in text
+    assert "────────────\n<b>Reporter</b>" in text
+    assert "────────────\n<b>Assignees</b>" in text
+    assert "────────────\n#12" in text
     assert "8 Oct 2026" in text
     assert "19:11" not in text
     assert "UTC" not in text
