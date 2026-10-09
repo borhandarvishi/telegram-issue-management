@@ -3,34 +3,28 @@
 from issuebot.formatting import h, link
 
 
-def home(name: str, project_count: int) -> str:
+def guide(name: str, project_count: int) -> str:
     if project_count:
         tail = f"Your projects: {project_count}"
     else:
         tail = "You have no projects yet. Start with the button below."
     return (
         f"Hello {h(name)} 👋\n\n"
-        "Report an issue, assign it, and keep it open until you confirm the fix.\n\n"
+        "<b>How it works</b>\n"
+        "1. Create a project and connect a private channel.\n"
+        "2. Share the invite. After joining, each person opens the bot.\n"
+        "3. File a report and choose at least one assignee.\n"
+        "4. The assignee marks it resolved. You confirm, or send it back.\n\n"
+        "<b>Marks</b>\n"
+        "🔴 Open\n"
+        "🔴⚠️ Urgent\n"
+        "🟡 Reopened\n"
+        "🟤 Resolved, waiting for the reporter\n"
+        "🟢 Confirmed\n"
+        "👤 Reporter or assignee\n\n"
+        "One number follows the issue everywhere: <b>ISSUE #12</b>\n\n"
         f"{tail}"
     )
-
-
-HELP = (
-    "<b>Help</b>\n\n"
-    "1. Create a project.\n"
-    "2. Create a private channel in Telegram.\n"
-    "3. Tap Choose channel, pick it, and let Telegram add the bot as admin.\n"
-    "4. Send the invite link to your team.\n"
-    "5. After joining, each person opens the bot from the pinned channel message.\n"
-    "6. A report, with photos and links, is filed in the bot and posted to the channel.\n"
-    "7. The assignee is notified. When it is fixed, they mark it resolved.\n"
-    "8. You, as the reporter, confirm the fix or send it back.\n\n"
-    "Every issue keeps one number: <b>ISSUE #12</b>\n"
-    "You will see that same token in notifications, in the bot, and in the channel.\n\n"
-    "A new invite link revokes the previous one.\n"
-    "Buttons stay under the keyboard.\n"
-    "If you get lost, send /start."
-)
 
 
 def ask_project_name() -> str:
@@ -220,8 +214,8 @@ def report_body(project: str, title: str) -> str:
         f"<b>New report · {h(project)}</b>\n"
         "Step 2 of 4\n\n"
         f"Title: {h(title)}\n\n"
-        "Describe the issue.\n"
-        "Put links, steps to reproduce, and any other detail here."
+        "Describe the issue, or tap Skip.\n"
+        "Links and steps can go here."
     )
 
 
@@ -231,8 +225,8 @@ def report_media(project: str, photo_count: int) -> str:
         f"<b>New report · {h(project)}</b>\n"
         "Step 3 of 4\n\n"
         f"{photos}\n"
-        "Send photos, or continue.\n"
-        "Up to 10 photos. Links belong in the description."
+        "Send photos, or tap Skip.\n"
+        "Up to 10 photos."
     )
 
 
@@ -244,11 +238,12 @@ def report_assign(
     photo_count: int,
     selected: list[str],
     pending_names: list[str],
+    urgent: bool,
 ) -> str:
     if selected:
-        chosen = "\n".join(h(item) for item in selected)
+        chosen = "\n".join(f"👤 {h(item)}" for item in selected)
     else:
-        chosen = "Nobody selected yet. You can file it unassigned."
+        chosen = "Nobody yet. At least one person is required."
     warn = ""
     if pending_names:
         names = ", ".join(h(name) for name in pending_names)
@@ -260,8 +255,9 @@ def report_assign(
         f"<b>{h(title)}</b>\n"
         f"{h(snippet)}\n"
         f"Photos: {photo_count}\n\n"
-        "Tap a name to select it. Tap again to remove it.\n\n"
-        f"<b>Selected</b>\n{chosen}{warn}"
+        f"Priority: {'Urgent' if urgent else 'Normal'}\n\n"
+        "Tap a name to add them. Tap the same name again to remove them.\n\n"
+        f"<b>Assignees</b>\n{chosen}{warn}"
     )
 
 
@@ -269,8 +265,8 @@ def filters_screen(project: str, counts: dict[str, int]) -> str:
     return (
         f"<b>Issues · {h(project)}</b>\n\n"
         f"🔴 Open · {counts.get('open', 0)}\n"
-        f"🟢 Awaiting confirmation · {counts.get('waiting', 0)}\n"
-        f"✅ Confirmed · {counts.get('done', 0)}\n\n"
+        f"🟤 Awaiting confirmation · {counts.get('waiting', 0)}\n"
+        f"🟢 Confirmed · {counts.get('done', 0)}\n\n"
         "Which list do you want?"
     )
 
@@ -332,6 +328,7 @@ TITLE_TOO_SHORT = "Make the title a little clearer. At least 3 characters."
 TITLE_TOO_LONG = "That title is too long. One short sentence is enough."
 BODY_TOO_SHORT = "Describe the issue. Links go here too."
 NOTE_TOO_SHORT = "The note is empty."
+NEED_ASSIGNEE = "Choose at least one person. Tap a name again to remove them."
 NAME_TOO_SHORT = "That project name is too short."
 NAME_TOO_LONG = "That project name is too long."
 GENERIC_ERROR = "Something went wrong. Tap the same button again."
@@ -372,38 +369,49 @@ def bot_needs_rights(title: str, missing: list[str]) -> str:
     return "\n".join(lines)
 
 
-def notify_assigned(number: int, project: str, title: str, reporter: str) -> str:
+def you_removed(person: str, project: str) -> str:
+    return f"You removed 👤 {h(person)} from <b>{h(project)}</b>."
+
+
+def kept_status(number: int, line: str) -> str:
+    return f"<b>ISSUE #{number}</b>\n{h(line)}"
+
+
+def notify_assigned(number: int, project: str, title: str, reporter: str, mark: str) -> str:
     return (
-        f"🎯 <b>ISSUE #{number}</b>\n"
+        f"{mark} <b>ISSUE #{number}</b>\n"
         f"{h(project)}\n\n"
         "Assigned to you.\n"
         f"{h(title)}\n"
         f"Reporter: {h(reporter)}\n\n"
-        "Open it from My work."
+        "Use the button below, or open it from My work."
     )
 
 
 def notify_resolved(number: int, project: str, title: str, solver: str) -> str:
     return (
-        f"🟢 <b>ISSUE #{number}</b>\n"
+        f"🟤 <b>ISSUE #{number}</b>\n"
         f"{h(project)}\n\n"
-        f"{h(solver)} marked it resolved.\n"
+        f"👤 {h(solver)} marked it resolved.\n"
         f"{h(title)}\n\n"
-        "If that is right, confirm it from My work."
+        "Confirm the fix, or send it back."
     )
 
 
 def notify_confirmed(number: int, project: str, title: str, reporter: str) -> str:
     return (
-        f"✅ <b>ISSUE #{number}</b>\n{h(project)}\n\n{h(reporter)} confirmed the fix.\n{h(title)}"
+        f"🟢 <b>ISSUE #{number}</b>\n"
+        f"{h(project)}\n\n"
+        f"👤 {h(reporter)} confirmed the fix.\n"
+        f"{h(title)}"
     )
 
 
 def notify_reopened(number: int, project: str, title: str, actor: str) -> str:
     return (
-        f"🔄 <b>ISSUE #{number}</b>\n"
+        f"🟡 <b>ISSUE #{number}</b>\n"
         f"{h(project)}\n\n"
-        f"{h(actor)} says it is not fixed yet.\n"
+        f"👤 {h(actor)} says it is not fixed yet.\n"
         f"{h(title)}"
     )
 

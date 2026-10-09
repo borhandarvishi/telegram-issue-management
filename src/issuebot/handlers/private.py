@@ -3,14 +3,14 @@
 from aiogram import F, Router
 from aiogram.enums import ChatType
 from aiogram.filters import Command, CommandObject, CommandStart
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 
 from issuebot import texts
 from issuebot.constants import Screen
-from issuebot.handlers.actions import link_shared_channel, open_deep_link
+from issuebot.handlers.actions import handle_callback, link_shared_channel, open_deep_link
 from issuebot.handlers.flow import handle_photo, handle_text
 from issuebot.handlers.types import Ctx
-from issuebot.handlers.ui import go_back, goto, land, remember
+from issuebot.handlers.ui import go_back, goto, remember
 
 router = Router(name="private")
 router.message.filter(F.chat.type == ChatType.PRIVATE)
@@ -36,7 +36,7 @@ async def on_start(message: Message, command: CommandObject, bot, db, account, d
     if args.startswith("p") and len(args) > 1:
         await open_deep_link(ctx, args[1:])
         return
-    await land(ctx)
+    await goto(ctx, Screen.HOME)
 
 
 @router.message(Command("help"))
@@ -70,6 +70,23 @@ async def on_chat_shared(message: Message, bot, db, account, dialog) -> None:
 @router.message(F.text)
 async def on_text(message: Message, bot, db, account, dialog) -> None:
     await handle_text(_ctx(message, bot, db, account, dialog))
+
+
+@router.callback_query()
+async def on_callback(query: CallbackQuery, bot, db, account, dialog) -> None:
+    message = query.message
+    if message is None or message.chat.type != ChatType.PRIVATE:
+        await query.answer()
+        return
+    await query.answer()
+    ctx = Ctx(
+        bot=bot,
+        db=db,
+        chat_id=message.chat.id,
+        account=account,
+        dialog=dialog,
+    )
+    await handle_callback(ctx, query.data or "")
 
 
 @router.message()

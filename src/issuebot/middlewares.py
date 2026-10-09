@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 
 from aiogram import BaseMiddleware
 from aiogram.enums import ChatType
-from aiogram.types import Message, TelegramObject
+from aiogram.types import CallbackQuery, Message, TelegramObject
 
 from issuebot.db.session import Database
 from issuebot.services.accounts import get_or_create_dialog, upsert_user
@@ -25,6 +25,16 @@ def _subject(event: TelegramObject) -> TelegramObject:
     if isinstance(inner, TelegramObject):
         return inner
     return event
+
+
+def _private_user(subject: TelegramObject):
+    if isinstance(subject, Message) and subject.chat.type == ChatType.PRIVATE:
+        return subject.from_user
+    if isinstance(subject, CallbackQuery) and subject.from_user is not None:
+        message = subject.message
+        if message is not None and message.chat.type == ChatType.PRIVATE:
+            return subject.from_user
+    return None
 
 
 def _user_id(event: TelegramObject) -> int | None:
@@ -44,13 +54,10 @@ class ContextMiddleware(BaseMiddleware):
         async with _user_lock(user_id):
             async with self.database.session() as db:
                 data["db"] = db
-                if (
-                    isinstance(subject, Message)
-                    and subject.chat.type == ChatType.PRIVATE
-                    and subject.from_user
-                ):
-                    data["account"] = await upsert_user(db, subject.from_user, opened_bot=True)
-                    data["dialog"] = await get_or_create_dialog(db, subject.from_user.id)
+                person = _private_user(subject)
+                if person is not None:
+                    data["account"] = await upsert_user(db, person, opened_bot=True)
+                    data["dialog"] = await get_or_create_dialog(db, person.id)
                 try:
                     result = await handler(event, data)
                 except Exception:

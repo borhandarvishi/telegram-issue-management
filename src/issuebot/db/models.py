@@ -84,6 +84,8 @@ class Issue(Base):
     title: Mapped[str] = mapped_column(String(120))
     description: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(16), index=True)
+    urgent: Mapped[bool] = mapped_column(Boolean, default=False)
+    reopened: Mapped[bool] = mapped_column(Boolean, default=False)
     reporter_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     resolved_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     confirmed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))

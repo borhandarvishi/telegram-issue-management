@@ -69,7 +69,8 @@ async def issue_buttons(
         pairs.append((issue_button(issue.number, issue.title, project_name), issue.id))
         if with_project:
             extra.append(
-                f"{status_emoji(issue.status)} {h(issue_token(issue.number))}"
+                f"{status_emoji(issue.status, urgent=issue.urgent, reopened=issue.reopened)}"
+                f" {h(issue_token(issue.number))}"
                 f" · {h(issue.project.name)}\n"
                 f"{h(issue.title)}"
             )

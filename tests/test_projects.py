@@ -81,9 +81,7 @@ async def test_owner_can_remove_a_member_but_not_themselves(db: AsyncSession):
     owner = await _user(db, 1, "owner")
     member = await _user(db, 2, "member")
     project = await create_project(db, owner, "Shop")
-    db.add(
-        Membership(project_id=project.id, user_id=member.id, role="member", active=True)
-    )
+    db.add(Membership(project_id=project.id, user_id=member.id, role="member", active=True))
     db.add(
         Dialog(
             user_id=member.id,

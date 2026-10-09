@@ -115,6 +115,7 @@ async def roster(db: AsyncSession, project_id: int) -> list[Membership]:
         .order_by(Membership.joined_at)
     )
     rows = list(await db.scalars(stmt))
+
     def _sort_key(row: Membership) -> tuple[bool, str]:
         person = format_person(row.user.username, row.user.first_name, row.user.last_name)
         return (row.role != Role.OWNER, person)

@@ -96,6 +96,7 @@ async def test_issue_numbers_and_status_flow(db: AsyncSession):
     again = await get_issue(db, first.id)
     assert again is not None
     assert again.status == Status.OPEN
+    assert again.reopened
     assert again.resolved_by_id is None
 
     note = await add_note(db, first.id, assignee, "Checked again")

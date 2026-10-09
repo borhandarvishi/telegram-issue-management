@@ -95,6 +95,8 @@ def to_card(issue: Issue) -> IssueCard:
         solver=person_label(issue.resolved_by) if issue.resolved_by else None,
         confirmer=person_label(issue.confirmed_by) if issue.confirmed_by else None,
         photo_count=len(issue.photos),
+        urgent=bool(issue.urgent),
+        reopened=bool(issue.reopened),
     )
 
 
@@ -184,6 +186,7 @@ async def create_issue(
     description: str,
     photos: list[str],
     assignee_ids: list[int],
+    urgent: bool = False,
 ) -> Issue:
     project.next_issue_number += 1
     issue = Issue(
@@ -192,6 +195,8 @@ async def create_issue(
         title=title,
         description=description,
         status=Status.OPEN,
+        urgent=urgent,
+        reopened=False,
         reporter_id=reporter.id,
         channel_message_ids=[],
         created_at=utcnow(),
@@ -282,6 +287,7 @@ async def reopen(db: AsyncSession, issue_id: int, actor: User) -> Outcome:
     if not (flags["is_reporter"] or flags["is_owner"]):
         raise NotAllowed
     issue.status = Status.OPEN
+    issue.reopened = True
     issue.resolved_by_id = None
     issue.resolved_at = None
     issue.confirmed_by_id = None

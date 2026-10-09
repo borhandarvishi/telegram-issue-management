@@ -21,10 +21,12 @@ from issuebot.constants import (
     MESSAGE_LIMIT,
     IssueFilter,
     Screen,
+    Status,
 )
-from issuebot.formatting import channel_card, format_person, h
+from issuebot.formatting import channel_card, format_person, h, status_emoji
 from issuebot.handlers.types import Ctx
-from issuebot.handlers.ui import goto, remember, render
+from issuebot.handlers.ui import go_back, goto, remember, render
+from issuebot.keyboards import issue_inline
 from issuebot.messaging import push_notice, safe_error
 from issuebot.services.accounts import update_payload
 from issuebot.services.issues import (
@@ -229,11 +231,13 @@ async def do_remove_member(ctx: Ctx) -> None:
         await remember(ctx, texts.CANNOT_REMOVE_FROM_CHANNEL)
         return
     try:
-        await drop_member(ctx.db, project.id, ctx.account.id, int(user_id))
+        removed_user = await drop_member(ctx.db, project.id, ctx.account.id, int(user_id))
     except CannotRemove:
         await remember(ctx, texts.NOT_ALLOWED)
         return
+    person = format_person(removed_user.username, removed_user.first_name, removed_user.last_name)
     await push_notice(ctx.bot, ctx.db, int(user_id), texts.removed_from_project(project.name))
+    await push_notice(ctx.bot, ctx.db, ctx.account.id, texts.you_removed(person, project.name))
     update_payload(
         ctx.dialog,
         remove_user_id=None,
@@ -293,6 +297,7 @@ async def start_report(ctx: Ctx) -> None:
         photos=[],
         selected=[],
         labels=None,
+        urgent=None,
     )
     await goto(ctx, Screen.REPORT_TITLE)
 
@@ -318,6 +323,16 @@ async def save_body(ctx: Ctx) -> None:
     await goto(ctx, Screen.REPORT_MEDIA)
 
 
+async def skip_body(ctx: Ctx) -> None:
+    update_payload(ctx.dialog, description="")
+    await goto(ctx, Screen.REPORT_MEDIA)
+
+
+async def set_priority(ctx: Ctx, urgent: bool) -> None:
+    update_payload(ctx.dialog, urgent=urgent)
+    await render(ctx)
+
+
 async def add_photo(ctx: Ctx) -> None:
     if ctx.dialog.state != Screen.REPORT_MEDIA:
         await remember(ctx, texts.USE_BUTTONS)
@@ -340,11 +355,14 @@ async def submit_report(ctx: Ctx) -> None:
     project = await get_project(ctx.db, ctx.dialog.project_id)
     title = str(ctx.payload.get("title") or "").strip()
     description = str(ctx.payload.get("description") or "").strip()
-    if project is None or not title or not description:
+    if project is None or not title:
         await remember(ctx, texts.STALE)
         return
     allowed = await member_ids(ctx.db, project.id)
     chosen = [int(item) for item in ctx.payload.get("selected") or [] if int(item) in allowed]
+    if not chosen:
+        await remember(ctx, texts.NEED_ASSIGNEE)
+        return
     photos = list(ctx.payload.get("photos") or [])[:MAX_PHOTOS]
     issue = await create_issue(
         ctx.db,
@@ -354,6 +372,7 @@ async def submit_report(ctx: Ctx) -> None:
         description=description,
         photos=photos,
         assignee_ids=chosen,
+        urgent=bool(ctx.payload.get("urgent")),
     )
     fresh = await get_issue(ctx.db, issue.id)
     published = False
@@ -429,6 +448,9 @@ async def save_assignees(ctx: Ctx) -> None:
         return
     allowed = await member_ids(ctx.db, issue.project_id)
     chosen = [int(item) for item in ctx.payload.get("selected") or [] if int(item) in allowed]
+    if not chosen:
+        await remember(ctx, texts.NEED_ASSIGNEE)
+        return
     try:
         outcome = await set_assignees(ctx.db, issue.id, ctx.account, chosen)
     except NotAllowed:
@@ -542,9 +564,10 @@ async def _transition(ctx: Ctx, factory, *, silent: bool) -> None:
     published = await sync_channel(ctx, fresh, silent=silent)
     await _notify_outcome(ctx, fresh, outcome.notify_ids, outcome.kind)
     actor = format_person(ctx.account.username, ctx.account.first_name, ctx.account.last_name)
+    line = _kind_text(outcome.kind, actor)
+    await push_notice(ctx.bot, ctx.db, ctx.account.id, texts.kept_status(fresh.number, line))
     extra = "" if published else f"\n{texts.PUBLISH_FAILED}"
-    flash = texts.status_changed(fresh.number, _kind_text(outcome.kind, actor)) + extra
-    update_payload(ctx.dialog, flash=flash)
+    update_payload(ctx.dialog, flash=texts.status_changed(fresh.number, line) + extra)
     await goto(ctx, Screen.ISSUE)
 
 
@@ -567,12 +590,15 @@ async def _notify_outcome(ctx: Ctx, issue, user_ids: list[int], kind: str) -> No
     card = to_card(issue)
     actor = format_person(ctx.account.username, ctx.account.first_name, ctx.account.last_name)
     for user_id in user_ids:
+        markup = None
         if kind == "resolved":
             text = texts.notify_resolved(card.number, card.project, card.title, actor)
+            markup = issue_inline(issue.id, confirm=True, reopen=True)
         elif kind == "confirmed":
             text = texts.notify_confirmed(card.number, card.project, card.title, actor)
         elif kind == "reopened":
             text = texts.notify_reopened(card.number, card.project, card.title, actor)
+            markup = issue_inline(issue.id, resolve=True)
         elif kind == "note" and issue.notes:
             note = issue.notes[-1]
             author = format_person(
@@ -582,13 +608,43 @@ async def _notify_outcome(ctx: Ctx, issue, user_ids: list[int], kind: str) -> No
             text = texts.notify_note(card.number, card.project, card.title, author, excerpt)
         else:
             continue
-        await push_notice(ctx.bot, ctx.db, user_id, text)
+        await push_notice(ctx.bot, ctx.db, user_id, text, markup)
 
 
 async def _notify_assigned(ctx: Ctx, issue, user_ids: list[int]) -> None:
     card = to_card(issue)
-    text = texts.notify_assigned(card.number, card.project, card.title, card.reporter)
+    mark = status_emoji(issue.status, urgent=issue.urgent, reopened=issue.reopened)
+    text = texts.notify_assigned(card.number, card.project, card.title, card.reporter, mark)
+    markup = issue_inline(issue.id, resolve=issue.status == Status.OPEN)
     for user_id in user_ids:
         if user_id == ctx.account.id:
             continue
-        await push_notice(ctx.bot, ctx.db, user_id, text)
+        await push_notice(ctx.bot, ctx.db, user_id, text, markup)
+
+
+async def handle_callback(ctx: Ctx, data: str) -> None:
+    parts = (data or "").split(":")
+    if len(parts) < 2 or parts[0] != "act":
+        return
+    if parts[1] == "back":
+        await go_back(ctx)
+        return
+    if len(parts) < 3 or not parts[2].isdigit():
+        return
+    issue = await get_issue(ctx.db, int(parts[2]))
+    if issue is None:
+        await remember(ctx, texts.STALE)
+        return
+    ctx.dialog.issue_id = issue.id
+    ctx.dialog.project_id = issue.project_id
+    action = {
+        "res": do_resolve,
+        "yes": do_confirm,
+        "re": do_reopen,
+        "note": lambda current: goto(current, Screen.NOTE),
+        "who": begin_reassign,
+        "pub": retry_publish,
+    }.get(parts[1])
+    if action is None:
+        return
+    await action(ctx)

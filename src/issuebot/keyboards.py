@@ -2,6 +2,8 @@
 
 from aiogram.types import (
     ChatAdministratorRights,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
     KeyboardButton,
     KeyboardButtonRequestChat,
     ReplyKeyboardMarkup,
@@ -57,6 +59,52 @@ def channel_button() -> KeyboardButton:
             bot_administrator_rights=rights,
         ),
     )
+
+
+def _inline(text: str, data: str) -> InlineKeyboardButton:
+    return InlineKeyboardButton(text=text, callback_data=data)
+
+
+def issue_inline(
+    issue_id: int,
+    *,
+    resolve: bool = False,
+    confirm: bool = False,
+    reopen: bool = False,
+    note: bool = False,
+    reassign: bool = False,
+    publish: bool = False,
+    back: bool = False,
+) -> InlineKeyboardMarkup | None:
+    """Glass buttons under a notification or an issue card."""
+    rows: list[list[InlineKeyboardButton]] = []
+    if resolve:
+        rows.append([_inline(Btn.RESOLVED, f"act:res:{issue_id}")])
+    if confirm and reopen:
+        rows.append(
+            [
+                _inline(Btn.CONFIRM, f"act:yes:{issue_id}"),
+                _inline(Btn.REOPEN, f"act:re:{issue_id}"),
+            ]
+        )
+    elif confirm:
+        rows.append([_inline(Btn.CONFIRM, f"act:yes:{issue_id}")])
+    elif reopen:
+        rows.append([_inline(Btn.REOPEN_CLOSED, f"act:re:{issue_id}")])
+    tools = []
+    if note:
+        tools.append(_inline(Btn.NOTE, f"act:note:{issue_id}"))
+    if reassign:
+        tools.append(_inline(Btn.ASSIGNEES, f"act:who:{issue_id}"))
+    if tools:
+        rows.append(tools)
+    if publish:
+        rows.append([_inline(Btn.PUBLISH, f"act:pub:{issue_id}")])
+    if back:
+        rows.append([_inline(Btn.BACK, "act:back")])
+    if not rows:
+        return None
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def home_rows(*, has_projects: bool) -> list[list[str]]:

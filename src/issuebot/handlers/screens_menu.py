@@ -20,14 +20,16 @@ async def render_home(ctx: Ctx) -> None:
     name = ctx.account.first_name or "there"
     await present(
         ctx,
-        texts.home(name, len(found)),
+        texts.guide(name, len(found)),
         home_rows(has_projects=bool(found)),
         "Choose an action",
     )
 
 
 async def render_help(ctx: Ctx) -> None:
-    await present(ctx, texts.HELP, [back_row()], "Back")
+    found = await projects_for(ctx.db, ctx.account.id)
+    name = ctx.account.first_name or "there"
+    await present(ctx, texts.guide(name, len(found)), [back_row()], "Back")
 
 
 async def render_new_project(ctx: Ctx) -> None:
@@ -234,7 +236,7 @@ async def render_report_body(ctx: Ctx) -> None:
     await present(
         ctx,
         texts.report_body(project.name, str(ctx.payload.get("title") or "")),
-        [back_row()],
+        [[Btn.SKIP], back_row()],
         "Describe the issue",
     )
 
@@ -247,6 +249,6 @@ async def render_report_media(ctx: Ctx) -> None:
     await present(
         ctx,
         texts.report_media(project.name, len(photos)),
-        [[Btn.PHOTOS_DONE], back_row()],
+        [[Btn.SKIP, Btn.PHOTOS_DONE], back_row()],
         "Send photos or continue",
     )

@@ -65,12 +65,15 @@ def format_when(moment: datetime) -> str:
     return f"{moment.day} {moment.strftime('%b %Y')}"
 
 
-def status_emoji(status: str) -> str:
-    return {
-        Status.OPEN: "🔴",
-        Status.RESOLVED: "🟢",
-        Status.CONFIRMED: "✅",
-    }.get(status, "🔴")
+def status_emoji(status: str, *, urgent: bool = False, reopened: bool = False) -> str:
+    if status == Status.RESOLVED:
+        return "🟤"
+    if status == Status.CONFIRMED:
+        return "🟢"
+    mark = "🟡" if reopened else "🔴"
+    if urgent:
+        return f"{mark}⚠️"
+    return mark
 
 
 def status_phrase(
@@ -111,6 +114,8 @@ class IssueCard:
     solver: str | None = None
     confirmer: str | None = None
     photo_count: int = 0
+    urgent: bool = False
+    reopened: bool = False
 
 
 def issue_token(number: int) -> str:
@@ -157,8 +162,8 @@ def detail_card(card: IssueCard) -> str:
 def _card_lines(card: IssueCard, *, notes: int, history: bool, photos: bool) -> str:
     phrase = status_phrase(card.status, solver=card.solver, confirmer=card.confirmer)
     lines = [
-        f"{status_emoji(card.status)} <b>{issue_token(card.number)}</b>",
-        h(phrase),
+        f"{_mark(card)} <b>{issue_token(card.number)}</b>",
+        h(_phrase(card, phrase)),
         f"{h(card.project)}  ·  {format_when(card.created_at)}",
         "",
         f"<b>{h(card.title)}</b>",
@@ -166,8 +171,8 @@ def _card_lines(card: IssueCard, *, notes: int, history: bool, photos: bool) -> 
     description = (card.description or "").strip()
     if description:
         lines += ["", _quoted(linkify(description))]
-    lines += _section("Reporter", [h(card.reporter)])
-    assignees = [h(person) for person in card.assignees] or ["Unassigned"]
+    lines += _section("Reporter", [f"👤 {h(card.reporter)}"])
+    assignees = [f"👤 {h(person)}" for person in card.assignees] or ["Unassigned"]
     lines += _section("Assignees", assignees)
     if photos and card.photo_count:
         word = "photo" if card.photo_count == 1 else "photos"
@@ -177,6 +182,18 @@ def _card_lines(card: IssueCard, *, notes: int, history: bool, photos: bool) -> 
         lines += _section("History", [f"• {h(item)}" for item in card.timeline[-8:]])
     lines += ["", f"#{card.number}"]
     return "\n".join(lines)
+
+
+def _mark(card: IssueCard) -> str:
+    return status_emoji(card.status, urgent=card.urgent, reopened=card.reopened)
+
+
+def _phrase(card: IssueCard, phrase: str) -> str:
+    if card.status == Status.OPEN and card.reopened:
+        phrase = "Reopened"
+    if card.urgent and card.status == Status.OPEN:
+        return f"{phrase} · Urgent"
+    return phrase
 
 
 def _channel_lines(card: IssueCard) -> str:
@@ -210,6 +227,8 @@ def _shrink(card: IssueCard, render, limit: int) -> str:
             solver=card.solver,
             confirmer=card.confirmer,
             photo_count=card.photo_count,
+            urgent=card.urgent,
+            reopened=card.reopened,
         )
         text = render(card)
     if len(text) > limit:

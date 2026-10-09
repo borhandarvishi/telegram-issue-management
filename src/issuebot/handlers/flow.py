@@ -27,6 +27,8 @@ from issuebot.handlers.actions import (
     save_body,
     save_note,
     save_title,
+    set_priority,
+    skip_body,
     start_report,
     submit_report,
     toggle_person,
@@ -169,8 +171,16 @@ _ACTIONS = {
     Screen.DELETE_CONFIRM.value: {Btn.DELETE_YES: delete_owned_project},
     Screen.REMOVE_MEMBER.value: {Btn.REMOVE_YES: do_remove_member},
     Screen.JOIN.value: {Btn.JOINED: confirm_joined},
-    Screen.REPORT_MEDIA.value: {Btn.PHOTOS_DONE: lambda ctx: goto(ctx, Screen.REPORT_ASSIGN)},
-    Screen.REPORT_ASSIGN.value: {Btn.SAVE_ISSUE: submit_report},
+    Screen.REPORT_BODY.value: {Btn.SKIP: skip_body},
+    Screen.REPORT_MEDIA.value: {
+        Btn.SKIP: lambda ctx: goto(ctx, Screen.REPORT_ASSIGN),
+        Btn.PHOTOS_DONE: lambda ctx: goto(ctx, Screen.REPORT_ASSIGN),
+    },
+    Screen.REPORT_ASSIGN.value: {
+        Btn.SAVE_ISSUE: submit_report,
+        Btn.URGENT: lambda ctx: set_priority(ctx, True),
+        Btn.NORMAL: lambda ctx: set_priority(ctx, False),
+    },
     Screen.ISSUE.value: {
         Btn.RESOLVED: _resolve_screen,
         Btn.CONFIRM: _confirm_screen,

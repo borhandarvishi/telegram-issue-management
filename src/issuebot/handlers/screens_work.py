@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from issuebot import texts
-from issuebot.constants import Btn, IssueFilter, Screen, Status
+from issuebot.constants import Btn, IssueFilter, Screen
 from issuebot.formatting import detail_card, h, issue_token, status_emoji
 from issuebot.handlers.screen_parts import (
     confirm_screen,
@@ -13,8 +13,8 @@ from issuebot.handlers.screen_parts import (
     people_picker,
 )
 from issuebot.handlers.types import Ctx
-from issuebot.handlers.ui import goto, present
-from issuebot.keyboards import back_row, filter_rows
+from issuebot.handlers.ui import goto, present, present_inline
+from issuebot.keyboards import back_row, filter_rows, issue_inline
 from issuebot.services.accounts import update_payload
 from issuebot.services.issues import counts, get_issue, inbox, list_issues, to_card
 from issuebot.services.members import get_membership
@@ -46,8 +46,9 @@ async def render_report_assign(ctx: Ctx) -> None:
             photo_count=len(ctx.payload.get("photos") or []),
             selected=body["selected"],
             pending_names=body["pending"],
+            urgent=bool(ctx.payload.get("urgent")),
         ),
-        rows + [[Btn.SAVE_ISSUE], back_row()],
+        rows + [[Btn.NORMAL, Btn.URGENT], [Btn.SAVE_ISSUE], back_row()],
         "Choose an assignee",
     )
 
@@ -93,7 +94,8 @@ async def render_issue_list(ctx: Ctx) -> None:
     except ValueError:
         title = f"Issues · {project.name}"
     lines = [
-        f"{status_emoji(issue.status)} {h(issue_token(issue.number))}  {h(issue.title)}"
+        f"{status_emoji(issue.status, urgent=issue.urgent, reopened=issue.reopened)}"
+        f" {h(issue_token(issue.number))}  {h(issue.title)}"
         for issue in chunk
     ]
     await issue_buttons(
@@ -125,24 +127,17 @@ async def render_issue(ctx: Ctx) -> None:
         is_member=True,
         has_post=bool(issue.channel_message_ids),
     )
-    rows: list[list[str]] = []
-    if caps.resolve:
-        rows.append([Btn.RESOLVED])
-    if caps.confirm:
-        rows.append([Btn.CONFIRM])
-    if caps.reopen:
-        rows.append([Btn.REOPEN if issue.status == Status.RESOLVED else Btn.REOPEN_CLOSED])
-    tools = []
-    if caps.note:
-        tools.append(Btn.NOTE)
-    if caps.reassign:
-        tools.append(Btn.ASSIGNEES)
-    if tools:
-        rows.append(tools)
-    if caps.publish:
-        rows.append([Btn.PUBLISH])
-    rows.append(back_row())
-    await present(ctx, detail_card(to_card(issue)), rows, issue_token(issue.number))
+    markup = issue_inline(
+        issue.id,
+        resolve=caps.resolve,
+        confirm=caps.confirm,
+        reopen=caps.reopen,
+        note=caps.note,
+        reassign=caps.reassign,
+        publish=caps.publish,
+        back=True,
+    )
+    await present_inline(ctx, detail_card(to_card(issue)), markup)
 
 
 async def render_resolve_confirm(ctx: Ctx) -> None:
@@ -178,9 +173,5 @@ async def render_reassign(ctx: Ctx) -> None:
         selected = {int(item) for item in ctx.payload.get("selected") or []}
     _body, rows, labels = await people_picker(ctx, project.id, selected)
     update_payload(ctx.dialog, labels=labels)
-    text = (
-        f"<b>{issue_token(issue.number)}</b>\n"
-        f"{h(issue.title)}\n\n"
-        "Choose assignees, then save."
-    )
+    text = f"<b>{issue_token(issue.number)}</b>\n{h(issue.title)}\n\nChoose assignees, then save."
     await present(ctx, text, rows + [[Btn.SAVE_ASSIGNEES], back_row()], "Choose assignees")

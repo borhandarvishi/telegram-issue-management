@@ -102,6 +102,19 @@ def test_urls_in_the_card_are_clickable():
     assert "<a" not in link("javascript:alert(1)")
 
 
+def test_status_colors():
+    assert channel_card(_card()).startswith("🔴")
+    assert channel_card(_card(urgent=True)).startswith("🔴⚠️")
+    assert channel_card(_card(reopened=True)).startswith("🟡")
+    resolved = channel_card(_card(status=Status.RESOLVED, solver="@ali (Ali)"))
+    assert resolved.startswith("🟤")
+    confirmed = channel_card(_card(status=Status.CONFIRMED, confirmer="@sara (Sara)"))
+    assert confirmed.startswith("🟢")
+    card = channel_card(_card())
+    assert "👤 @ali (Ali Rezaei)" in card
+    assert "👤 @sara (Sara Ahmadi)" in card
+
+
 def test_buttons_stay_within_telegram_limit():
     label = issue_button(12, "A very long title " * 20, "A long project name")
     assert len(label) <= BUTTON_LIMIT

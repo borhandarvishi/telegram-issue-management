@@ -33,6 +33,14 @@ async def present(ctx: Ctx, text: str, rows: list, placeholder: str) -> None:
     await show_screen(ctx.bot, ctx.db, ctx.dialog, text, keyboard(rows, placeholder))
 
 
+async def present_inline(ctx: Ctx, text: str, markup) -> None:
+    flash = ctx.payload.get("flash")
+    if flash:
+        text = f"{flash}\n\n{text}"
+        update_payload(ctx.dialog, flash=None)
+    await show_screen(ctx.bot, ctx.db, ctx.dialog, text, markup)
+
+
 async def goto(ctx: Ctx, state: Screen, **payload: object) -> None:
     ctx.dialog.state = state.value
     ctx.dialog.updated_at = utcnow()

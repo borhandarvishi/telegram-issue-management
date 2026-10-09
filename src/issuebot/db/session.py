@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -28,6 +28,7 @@ class Database:
         _ensure_sqlite_directory(self.url)
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(_ensure_issue_columns)
 
     def session(self) -> AsyncSession:
         return self.sessions()
@@ -51,6 +52,17 @@ def _ensure_sqlite_directory(url: str) -> None:
     if not database or database == ":memory:":
         return
     Path(database).parent.mkdir(parents=True, exist_ok=True)
+
+
+def _ensure_issue_columns(connection) -> None:
+    rows = connection.execute(text("PRAGMA table_info(issues)")).fetchall()
+    names = {row[1] for row in rows}
+    if "urgent" not in names:
+        connection.execute(text("ALTER TABLE issues ADD COLUMN urgent BOOLEAN NOT NULL DEFAULT 0"))
+    if "reopened" not in names:
+        connection.execute(
+            text("ALTER TABLE issues ADD COLUMN reopened BOOLEAN NOT NULL DEFAULT 0")
+        )
 
 
 def _enable_sqlite_fk(engine: AsyncEngine) -> None:
